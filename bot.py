@@ -3,12 +3,13 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 import nest_asyncio
 import asyncio
-
+import os
 nest_asyncio.apply()
 asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 # ==== CONFIG ====
-TOKEN = "7691361101:AAGp1AWab11sEneVEZCjLb5_P3mZ2F-xE1c"
+
+TOKEN = os.environ.get("TOKEN")
 ADMINS = [2026933109]
 BANK_NUMBER = "7719584860"
 
