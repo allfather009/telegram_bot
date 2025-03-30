@@ -4,22 +4,18 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 import nest_asyncio
 import asyncio
 import sys
+import os
 
 nest_asyncio.apply()
-
 if sys.platform.startswith('win'):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-import os
-
-
 # ==== CONFIG ====
-
 TOKEN = os.environ.get("TOKEN")
 ADMINS = [2026933109]
 BANK_NUMBER = "7719584860"
+CHANNEL_LINK = "https://t.me/+75CaCQXsvqUwMTE6"
 
-# ✅ Add/remove your advertisers here
 PARTNERS = ["Nerdosis", "None"]
 referral_counts = {partner: 0 for partner in PARTNERS}
 
@@ -32,24 +28,45 @@ user_sessions = {}
 # ==== /START ====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
-    user_sessions[user.id] = {"step": "waiting_for_proof"}
+    user_sessions[user.id] = {"step": "waiting_for_offer"}
 
-    await update.message.reply_text(
-        f"👋 Welcome!\n\n💸 Please send money to:\n🏦 FIB Account: {BANK_NUMBER}\n\n"
-        f"📸 Then upload a screenshot of your bank transfer here."
+    buttons = [
+        [InlineKeyboardButton("🟠 1 Year", callback_data="offer_1year")],
+        [InlineKeyboardButton("🔵 6 Months", callback_data="offer_6months")]
+    ]
+    reply_markup = InlineKeyboardMarkup(buttons)
+
+    await update.message.reply_text("🛍️ Please choose an offer:", reply_markup=reply_markup)
+
+# ==== HANDLE OFFER SELECTION ====
+async def handle_offer_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user = query.from_user
+    user_id = user.id
+
+    offer = "1 Year" if query.data == "offer_1year" else "6 Months"
+    user_sessions[user_id] = {
+        "step": "waiting_for_proof",
+        "offer": offer,
+        "username": user.username or user.first_name
+    }
+
+    await query.edit_message_text(
+        f"✅ Offer selected: {offer}\n\n💸 Please send money to:\n🏦 FIB Account: {BANK_NUMBER}\n\n"
+        "📸 Then upload a screenshot of your bank transfer here."
     )
 
 # ==== HANDLE PAYMENT ====
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     user_id = user.id
-    username = user.username or user.first_name
 
-    user_sessions[user_id] = {
-        "step": "waiting_for_email",
-        "proof_file_id": update.message.photo[-1].file_id,
-        "username": username
-    }
+    if user_id not in user_sessions or user_sessions[user_id].get("step") != "waiting_for_proof":
+        return await update.message.reply_text("❗ Please start again with /start")
+
+    user_sessions[user_id]["step"] = "waiting_for_email"
+    user_sessions[user_id]["proof_file_id"] = update.message.photo[-1].file_id
 
     await update.message.reply_text("✅ Got the screenshot!\nNow send your **email and password**.")
 
@@ -63,13 +80,12 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_sessions[user_id]["email_password"] = text
         user_sessions[user_id]["step"] = "waiting_for_referral"
 
-        # Show referral buttons
         buttons = [[InlineKeyboardButton(p, callback_data=p)] for p in PARTNERS]
         reply_markup = InlineKeyboardMarkup(buttons)
 
         await update.message.reply_text("👥 Who referred you to us?", reply_markup=reply_markup)
     else:
-        await update.message.reply_text("Please first send your payment screenshot.")
+        await update.message.reply_text("Please first complete the previous steps.")
 
 # ==== HANDLE REFERRAL CHOICE ====
 async def handle_referral(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -87,8 +103,13 @@ async def handle_referral(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     proof = user_sessions[user_id].get("proof_file_id")
     email_pass = user_sessions[user_id].get("email_password")
+    offer = user_sessions[user_id].get("offer")
 
-    await query.edit_message_text("✅ Thank you! An admin will contact you shortly.")
+    await query.edit_message_text(
+        f"✅ Thank you! An admin will contact you shortly.\n\n👉 [Join Our Channel]({CHANNEL_LINK})",
+        parse_mode="Markdown",
+        disable_web_page_preview=True
+    )
 
     for admin_id in ADMINS:
         try:
@@ -97,8 +118,9 @@ async def handle_referral(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 photo=proof,
                 caption=(
                     f"📥 New Order Received!\n\n"
-                    f"👤 Username: @{username}\n🆔 ID: {user_id}\n\n"
-                    f"📧 Email/Password:\n{email_pass}\n"
+                    f"👤 Username: @{username}\n🆔 ID: {user_id}\n"
+                    f"📦 Offer: {offer}\n"
+                    f"📧 Email/Password: {email_pass}\n"
                     f"📣 Referred by: {referral}"
                 )
             )
@@ -122,9 +144,10 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("zaniary", show_referral_stats))
+    app.add_handler(CallbackQueryHandler(handle_offer_selection, pattern="^offer_"))
+    app.add_handler(CallbackQueryHandler(handle_referral, pattern="^(?!offer_).*$"))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
-    app.add_handler(CallbackQueryHandler(handle_referral))
 
     print("🤖 Bot is running...")
     app.run_polling()
