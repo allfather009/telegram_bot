@@ -72,7 +72,17 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_sessions[user_id]["step"] = "waiting_for_email"
     user_sessions[user_id]["proof_file_id"] = update.message.photo[-1].file_id
 
-    await update.message.reply_text("✅ Got the screenshot!\nNow send your **email and password**.")
+    await update.message.reply_text(
+        "✅ Got the screenshot!
+
+"
+        "📧 Now please send the email and password you want us to use.
+
+"
+        "🛡️ Don't worry — your data is safe with us.
+"
+        "We will use this email to activate access to the medical resources you purchased."
+    )
 
 # ==== HANDLE EMAIL + PASSWORD ====
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
