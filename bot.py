@@ -74,7 +74,8 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
         "✅ Got the screenshot!\n\n"
-        "📧 Now please send the email and password you want us to use.\n\n"
+        "📧 Now please send the email and password you want us to use.\n"
+        "💡 Example: yourname@gmail.com yourPassword123\n\n"
         "🛡️ Don't worry — your data is safe with us.\n"
         "We will use this email to activate access to the medical resources you purchased."
     )
