@@ -5,6 +5,7 @@ import nest_asyncio
 import asyncio
 import sys
 import os
+import re
 
 nest_asyncio.apply()
 if sys.platform.startswith('win'):
@@ -24,6 +25,9 @@ logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
 
 # ==== SESSION STORAGE ====
 user_sessions = {}
+
+def is_valid_email(email):
+    return re.match(r"[^@\s]+@[^@\s]+\.[^@\s]+", email)
 
 # ==== /START ====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -77,6 +81,9 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
 
     if user_sessions.get(user_id, {}).get("step") == "waiting_for_email":
+        if not is_valid_email(text.split()[0]):
+            return await update.message.reply_text("❌ Please send a **valid email address** followed by your password.")
+
         user_sessions[user_id]["email_password"] = text
         user_sessions[user_id]["step"] = "waiting_for_referral"
 
